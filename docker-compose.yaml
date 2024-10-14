@@ -3,15 +3,15 @@ version: '3.8'
 services:
   automation-api:
     build:
-      context: .
-      dockerfile: Dockerfile  # Reference the Dockerfile
+      context: https://github.com/liamgwallace/scheduler_tool  # Use GitHub URL directly
+      dockerfile: Dockerfile  # Reference the Dockerfile in the repository
     ports:
       - "8000:8000"
-      - "5000:5000"  # Added port mapping for web server
+      - "5000:5000"
     volumes:
-      - ./app/automations.json:/app/app/automations.json  # Persist automation data
-      - ./app/automation.log:/app/app/automation.log      # Log automation runs
-      - ./app/error.log:/app/app/error.log                # Log errors
-      - ./app/repos.json:/app/app/repos.json              # Persist repo data
-      - ./app/repos:/app/app/repos                        # Persist cloned repositories
+      - ./app/automations.json:/app/app/automations.json
+      - ./app/automation.log:/app/app/automation.log
+      - ./app/error.log:/app/app/error.log
+      - ./app/repos.json:/app/app/repos.json
+      - ./app/repos:/app/app/repos
     restart: always
