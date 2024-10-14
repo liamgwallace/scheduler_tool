@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Automation and Repo Manager</title>
+    <style>
+        /* Simple styles for table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ccc;
+            padding: 8px;
+            text-align: left;
+        }
+        button {
+            margin: 2px;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            padding-top: 60px;
+            left: 0; top: 0; width: 100%; height: 100%;
+            overflow: auto; background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: auto; padding: 20px;
+            border: 1px solid #888; width: 80%;
+        }
+        .close {
+            color: #aaa; float: right;
+            font-size: 28px; font-weight: bold;
+        }
+        .close:hover, .close:focus {
+            color: black; text-decoration: none; cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Automation and Repo Manager</h1>
+
+<h2>Automations</h2>
+<button onclick="showCreateAutomationModal()">Create New Automation</button>
+<table id="automations-table">
+    <thead>
+        <tr>
+            <th>Task ID</th>
+            <th>Schedule</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        <!-- Automations will be populated here -->
+    </tbody>
+</table>
+
+<h2>Repositories</h2>
+<button onclick="showCreateRepoModal()">Add New Repository</button>
+<table id="repos-table">
+    <thead>
+        <tr>
+            <th>Repo Name</th>
+            <th>Repo URL</th>
+            <th>Schedule</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        <!-- Repos will be populated here -->
+    </tbody>
+</table>
+
+<!-- Modals -->
+<div id="automation-modal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeAutomationModal()">&times;</span>
+        <h2 id="automation-modal-title">Edit Automation</h2>
+        <form id="automation-form">
+            <input type="hidden" id="automation-task-id">
+            <label for="automation-task-id-input">Task ID:</label><br>
+            <input type="text" id="automation-task-id-input" name="task_id"><br>
+            <label for="automation-code">Code:</label><br>
+            <textarea id="automation-code" name="code" rows="10" cols="50"></textarea><br>
+            <label for="automation-packages">Packages (comma-separated):</label><br>
+            <input type="text" id="automation-packages" name="packages"><br>
+            <label for="automation-schedule">Schedule (cron expression):</label><br>
+            <input type="text" id="automation-schedule" name="schedule"><br>
+            <label for="automation-run-on-startup">Run on Startup:</label>
+            <input type="checkbox" id="automation-run-on-startup" name="run_on_startup"><br>
+            <label for="automation-run-once">Run Once:</label>
+            <input type="checkbox" id="automation-run-once" name="run_once"><br><br>
+            <button type="button" onclick="submitAutomationForm()">Submit</button>
+        </form>
+    </div>
+</div>
+
+<div id="repo-modal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeRepoModal()">&times;</span>
+        <h2 id="repo-modal-title">Edit Repository</h2>
+        <form id="repo-form">
+            <input type="hidden" id="repo-name">
+            <label for="repo-url">Repo URL:</label><br>
+            <input type="text" id="repo-url" name="repo_url"><br>
+            <label for="repo-schedule">Schedule (cron expression):</label><br>
+            <input type="text" id="repo-schedule" name="schedule"><br>
+            <label for="repo-run-on-startup">Run on Startup:</label>
+            <input type="checkbox" id="repo-run-on-startup" name="run_on_startup"><br>
+            <label for="repo-run-once">Run Once:</label>
+            <input type="checkbox" id="repo-run-once" name="run_once"><br><br>
+            <button type="button" onclick="submitRepoForm()">Submit</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    const apiBaseUrl = 'http://localhost:8000';
+
+    function fetchAutomations() {
+        fetch(`${apiBaseUrl}/automation/list_all/`)
+            .then(response => response.json())
+            .then(data => {
+                console.log('Automations data:', data); // Debug statement
+                const tbody = document.getElementById('automations-table').getElementsByTagName('tbody')[0];
+                tbody.innerHTML = '';
+                for (const [task_id, automation] of Object.entries(data)) {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${task_id}</td>
+                        <td>${automation.schedule || ''}</td>
+                        <td>
+                            <button onclick="editAutomation('${task_id}')">Edit</button>
+                            <button onclick="runAutomationOnce('${task_id}')">Run Once</button>
+                            <button onclick="deleteAutomation('${task_id}')">Delete</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                }
+            })
+            .catch(error => console.error('Error fetching automations:', error)); // Error handling
+    }
+
+    function fetchRepos() {
+        fetch(`${apiBaseUrl}/repo/list_all/`)
+            .then(response => response.json())
+            .then(data => {
+                console.log('Repositories data:', data); // Debug statement
+                const tbody = document.getElementById('repos-table').getElementsByTagName('tbody')[0];
+                tbody.innerHTML = '';
+                for (const [repo_name, repo] of Object.entries(data)) {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${repo_name}</td>
+                        <td>${repo.repo_url}</td>
+                        <td>${repo.schedule || ''}</td>
+                        <td>
+                            <button onclick="editRepo('${repo_name}')">Edit</button>
+                            <button onclick="runRepoOnce('${repo_name}')">Run Once</button>
+                            <button onclick="deleteRepo('${repo_name}')">Delete</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                }
+            })
+            .catch(error => console.error('Error fetching repositories:', error)); // Error handling
+    }
+
+    function editAutomation(task_id) {
+        document.getElementById('automation-modal-title').innerText = 'Edit Automation';
+        fetch(`${apiBaseUrl}/automation/${task_id}/get_code/`)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('automation-task-id').value = task_id;
+                document.getElementById('automation-task-id-input').value = task_id;
+                document.getElementById('automation-task-id-input').disabled = true;
+                document.getElementById('automation-code').value = data.code || '';
+                document.getElementById('automation-packages').value = (data.packages || []).join(', ');
+                document.getElementById('automation-schedule').value = data.schedule || '';
+                document.getElementById('automation-run-on-startup').checked = data.run_on_startup || false;
+                document.getElementById('automation-run-once').checked = data.run_once || false;
+                showAutomationModal();
+            })
+            .catch(error => console.error('Error fetching automation details:', error)); // Error handling
+    }
+
+    function editRepo(repo_name) {
+        document.getElementById('repo-modal-title').innerText = 'Edit Repository';
+        fetch(`${apiBaseUrl}/repo/list_all/`)
+            .then(response => response.json())
+            .then(repos => {
+                const repo = repos[repo_name];
+                document.getElementById('repo-name').value = repo_name;
+                document.getElementById('repo-url').value = repo.repo_url || '';
+                document.getElementById('repo-schedule').value = repo.schedule || '';
+                document.getElementById('repo-run-on-startup').checked = repo.run_on_startup || false;
+                document.getElementById('repo-run-once').checked = repo.run_once || false;
+                showRepoModal();
+            })
+            .catch(error => console.error('Error fetching repository details:', error)); // Error handling
+    }
+
+    function showCreateAutomationModal() {
+        document.getElementById('automation-modal-title').innerText = 'Create New Automation';
+        document.getElementById('automation-task-id').value = '';
+        document.getElementById('automation-task-id-input').value = '';
+        document.getElementById('automation-task-id-input').disabled = false;
+        document.getElementById('automation-code').value = '';
+        document.getElementById('automation-packages').value = '';
+        document.getElementById('automation-schedule').value = '';
+        document.getElementById('automation-run-on-startup').checked = false;
+        document.getElementById('automation-run-once').checked = false;
+        showAutomationModal();
+    }
+
+    function showCreateRepoModal() {
+        document.getElementById('repo-modal-title').innerText = 'Add New Repository';
+        document.getElementById('repo-name').value = '';
+        document.getElementById('repo-url').value = '';
+        document.getElementById('repo-schedule').value = '';
+        document.getElementById('repo-run-on-startup').checked = false;
+        document.getElementById('repo-run-once').checked = false;
+        showRepoModal();
+    }
+
+    function showAutomationModal() {
+        document.getElementById('automation-modal').style.display = 'block';
+    }
+
+    function closeAutomationModal() {
+        document.getElementById('automation-modal').style.display = 'none';
+    }
+
+    function showRepoModal() {
+        document.getElementById('repo-modal').style.display = 'block';
+    }
+
+    function closeRepoModal() {
+        document.getElementById('repo-modal').style.display = 'none';
+    }
+
+    function submitAutomationForm() {
+        const task_id = document.getElementById('automation-task-id-input').value;
+        const code = document.getElementById('automation-code').value;
+        const packages = document.getElementById('automation-packages').value.split(',').map(s => s.trim()).filter(s => s);
+        const schedule = document.getElementById('automation-schedule').value || null;
+        const run_on_startup = document.getElementById('automation-run-on-startup').checked;
+        const run_once = document.getElementById('automation-run-once').checked;
+
+        fetch(`${apiBaseUrl}/automation/create_or_update/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ task_id, code, packages, schedule, run_on_startup, run_once })
+        }).then(response => response.json())
+        .then(data => {
+            alert(data.message);
+            closeAutomationModal();
+            fetchAutomations();
+        })
+        .catch(error => console.error('Error submitting automation form:', error)); // Error handling
+    }
+
+    function submitRepoForm() {
+        const repo_url = document.getElementById('repo-url').value;
+        const schedule = document.getElementById('repo-schedule').value || null;
+        const run_on_startup = document.getElementById('repo-run-on-startup').checked;
+        const run_once = document.getElementById('repo-run-once').checked;
+
+        fetch(`${apiBaseUrl}/repo/clone_and_run/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ repo_url, schedule, run_on_startup, run_once })
+        }).then(response => response.json())
+        .then(data => {
+            alert(data.message);
+            closeRepoModal();
+            fetchRepos();
+        })
+        .catch(error => console.error('Error submitting repository form:', error)); // Error handling
+    }
+
+    function runAutomationOnce(task_id) {
+        fetch(`${apiBaseUrl}/automation/${task_id}/get_code/`)
+            .then(response => response.json())
+            .then(data => {
+                const code = data.code;
+                const packages = data.packages || [];
+                fetch(`${apiBaseUrl}/automation/create_or_update/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ task_id, code, packages, schedule: data.schedule, run_on_startup: data.run_on_startup, run_once: true })
+                }).then(response => response.json())
+                .then(data => {
+                    alert(`Automation ${task_id} run once.`);
+                });
+            })
+            .catch(error => console.error('Error running automation once:', error)); // Error handling
+    }
+
+    function deleteAutomation(task_id) {
+        if (confirm(`Are you sure you want to delete automation ${task_id}?`)) {
+            fetch(`${apiBaseUrl}/automation/${task_id}/delete/`, {
+                method: 'DELETE'
+            }).then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                fetchAutomations();
+            })
+            .catch(error => console.error('Error deleting automation:', error)); // Error handling
+        }
+    }
+
+    function runRepoOnce(repo_name) {
+        fetch(`${apiBaseUrl}/repo/${repo_name}/re-pull/`, {
+            method: 'POST'
+        }).then(response => response.json())
+        .then(data => {
+            alert(`Repository ${repo_name} run once.`);
+        })
+        .catch(error => console.error('Error running repository once:', error)); // Error handling
+    }
+
+    function deleteRepo(repo_name) {
+        if (confirm(`Are you sure you want to delete repository ${repo_name}?`)) {
+            fetch(`${apiBaseUrl}/repo/${repo_name}/delete/`, {
+                method: 'DELETE'
+            }).then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                fetchRepos();
+            })
+            .catch(error => console.error('Error deleting repository:', error)); // Error handling
+        }
+    }
+
+    window.onclick = function(event) {
+        const automationModal = document.getElementById('automation-modal');
+        const repoModal = document.getElementById('repo-modal');
+        if (event.target == automationModal) {
+            closeAutomationModal();
+        }
+        if (event.target == repoModal) {
+            closeRepoModal();
+        }
+    }
+
+    // Initial fetch
+    fetchAutomations();
+    fetchRepos();
+</script>
+
+</body>
+</html>

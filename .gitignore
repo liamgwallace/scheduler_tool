@@ -1,0 +1,14 @@
+# Ignore cloned repositories
+app/repos/
+
+# Ignore log files
+app/automation.log
+app/error.log
+
+# Ignore JSON data files
+app/automations.json
+app/repos.json
+
+# Ignore virtual environments
+venv/
+venv2/

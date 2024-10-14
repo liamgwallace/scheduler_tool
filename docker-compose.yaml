@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  automation-api:
+    build:
+      context: .
+      dockerfile: Dockerfile  # Reference the Dockerfile
+    ports:
+      - "8000:8000"
+      - "5000:5000"  # Added port mapping for web server
+    volumes:
+      - ./app/automations.json:/app/app/automations.json  # Persist automation data
+      - ./app/automation.log:/app/app/automation.log      # Log automation runs
+      - ./app/error.log:/app/app/error.log                # Log errors
+      - ./app/repos.json:/app/app/repos.json              # Persist repo data
+      - ./app/repos:/app/app/repos                        # Persist cloned repositories
+    restart: always
