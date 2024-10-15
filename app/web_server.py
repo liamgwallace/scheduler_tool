@@ -6,7 +6,10 @@ app = Flask(__name__)
 
 @app.route('/')
 def index():
-    return send_from_directory('.', 'index.html')
+    # Get the directory of the current script
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    # Serve index.html from the 'app' directory
+    return send_from_directory(current_dir, 'index.html')
 
 if __name__ == "__main__":
     # Get the machine's local IP address

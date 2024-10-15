@@ -3,7 +3,7 @@ import time
 
 # Base URL of the API
 BASE_URL = "http://localhost:8000"
-#BASE_URL = "http://192.168.8.146:8000"
+BASE_URL = "http://192.168.8.146:8000"
 
 def create_or_update_automation(task_id, code, packages, schedule, run_on_startup, run_once):
     response = requests.post(f"{BASE_URL}/automation/create_or_update/", json={

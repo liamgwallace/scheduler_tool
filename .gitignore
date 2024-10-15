@@ -9,6 +9,9 @@ logs/error.log
 data/automations.json
 data/repos.json
 
+# testing goes here
+testfiles/
+
 # Ignore virtual environments
 venv/
 venv2/
