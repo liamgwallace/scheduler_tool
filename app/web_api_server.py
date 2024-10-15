@@ -1,5 +1,5 @@
 import socket
-from flask import Flask, request, jsonify
+from flask import Flask, send_from_directory, jsonify, request
 import subprocess
 import logging
 import os
@@ -28,6 +28,7 @@ BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 DATA_DIR = os.path.join(BASE_DIR, 'data')
 LOG_DIR = os.path.join(BASE_DIR, 'logs')
 REPO_DIR = os.path.join(BASE_DIR, 'repos')
+APP_DIR = os.path.join(BASE_DIR, 'app')
 
 # Ensure these directories exist
 os.makedirs(DATA_DIR, exist_ok=True)
@@ -239,6 +240,10 @@ def clone_and_run(repo_url, schedule=None, run_on_startup=False, run_once=False)
     return repo_name  # Return the repository name as the ID
 
 # Routes for Automations
+@app.route('/')
+def index():
+    # Serve index.html from the current directory
+    return send_from_directory(APP_DIR, 'index.html')
 
 @app.route("/automation/create_or_update/", methods=["POST"])
 @handle_exceptions
