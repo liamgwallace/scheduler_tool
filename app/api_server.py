@@ -1,3 +1,5 @@
+
+import socket
 from flask import Flask, request, jsonify
 import subprocess
 import logging
@@ -529,5 +531,19 @@ def startup_event():
 def before_first_request_func():
     startup_event()
 
+
+
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8000, debug=True)
+    # Get the machine's local IP address
+    hostname = socket.gethostname()
+    local_ip = socket.gethostbyname(hostname)
+    port = "8000"
+
+    # Print informative message
+    print(f"##############################")
+    print(f"Local address: http://{local_ip}:{port}")
+    print(f"Machine hostname: {hostname}")
+
+    # Run the Flask server
+    app.run(host="0.0.0.0", port=port, debug=False)
