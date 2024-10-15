@@ -2,7 +2,7 @@ FROM python:3.9-slim
 
 WORKDIR /app
 
-# Install git, curl, nano, and necessary packages
+# Install git, curl, nano, and necessary packagess
 RUN apt-get update && apt-get install -y git curl nano \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
