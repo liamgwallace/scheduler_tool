@@ -12,3 +12,6 @@ app/repos.json
 # Ignore virtual environments
 venv/
 venv2/
+
+# Ignore PyCharm project settings
+.idea/
