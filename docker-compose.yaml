@@ -4,7 +4,7 @@ services:
       context: .  # Use current folder context
       dockerfile_inline: |
         FROM python:3.9-slim
-        WORKDIR /app
+        WORKDIR /
 
         # Install git and necessary packages
         RUN apt-get update && apt-get install -y git \
@@ -20,14 +20,18 @@ services:
         EXPOSE 8000 5000
 
         # Ensure the latest updates are pulled when the container starts
-        CMD ["sh", "-c", "git -C /app pull && python app/api_server.py & python app/web_server.py"]
+        CMD ["sh", "-c", "git -C / pull && python app/api_server.py & python app/web_server.py"]
     ports:
       - "8000:8000"
       - "5000:5000"  # Added port mapping for web server
     volumes:
-      - ./app/automations.json:/app/app/automations.json  # Persist automation data
-      - ./app/automation.log:/app/app/automation.log      # Log automation runs
-      - ./app/error.log:/app/app/error.log                # Log errors
-      - ./app/repos.json:/app/app/repos.json              # Persist repo data
-      - ./app/repos:/app/app/repos                        # Persist cloned repositories
+      - ./data:/data                                # Persist all data files
+      - ./logs:/logs                                # Persist all log files
+      - ./repos:/repos                              # Persist cloned repositories
     restart: always
+    networks:
+      - web
+
+networks:
+  web:
+    external: true

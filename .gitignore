@@ -1,13 +1,13 @@
 # Ignore cloned repositories
-app/repos/
+repos/
 
 # Ignore log files
-app/automation.log
-app/error.log
+logs/automation.log
+logs/error.log
 
 # Ignore JSON data files
-app/automations.json
-app/repos.json
+data/automations.json
+data/repos.json
 
 # Ignore virtual environments
 venv/

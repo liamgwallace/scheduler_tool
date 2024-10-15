@@ -1,4 +1,3 @@
-
 import socket
 from flask import Flask, request, jsonify
 import subprocess
@@ -22,22 +21,30 @@ CORS(app)  # Enable CORS for all routes
 scheduler = BackgroundScheduler()
 scheduler.start()
 
+# Define base directory one level up from the current script working directory
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+
+# Define the directories for data, log, and repo
+DATA_DIR = os.path.join(BASE_DIR, 'data')
+LOG_DIR = os.path.join(BASE_DIR, 'logs')
+REPO_DIR = os.path.join(BASE_DIR, 'repos')
+
+# Ensure these directories exist
+os.makedirs(DATA_DIR, exist_ok=True)
+os.makedirs(LOG_DIR, exist_ok=True)
+os.makedirs(REPO_DIR, exist_ok=True)
+
 # Set up logging
-log_dir = os.path.abspath(".")
 logging.basicConfig(
-    filename=os.path.join(log_dir, 'automation.log'),
+    filename=os.path.join(LOG_DIR, 'automation.log'),
     level=logging.INFO,
     format='%(asctime)s - %(message)s'
 )
-error_log = os.path.join(log_dir, 'error.log')
+error_log = os.path.join(LOG_DIR, 'error.log')
 
 # Files to store automations and repositories
-AUTOMATIONS_FILE = os.path.join(log_dir, "automations.json")
-REPOS_FILE = os.path.join(log_dir, "repos.json")
-
-# Ensure the necessary directories exist
-repos_dir = os.path.join(log_dir, "repos")
-os.makedirs(repos_dir, exist_ok=True)
+AUTOMATIONS_FILE = os.path.join(DATA_DIR, "automations.json")
+REPOS_FILE = os.path.join(DATA_DIR, "repos.json")
 
 # If automations.json or repos.json doesn't exist, create it
 for file in [AUTOMATIONS_FILE, REPOS_FILE]:
@@ -153,7 +160,7 @@ def remove_readonly(func, path, excinfo):
 # Clone a GitHub repository and run main.py if it exists
 def clone_and_run(repo_url, schedule=None, run_on_startup=False, run_once=False):
     repo_name = repo_url.rstrip('/').split('/')[-1].replace('.git', '')
-    repo_dir = os.path.join(repos_dir, repo_name)
+    repo_dir = os.path.join(REPO_DIR, repo_name)
 
     # Clone the repository if it doesn't exist
     if not os.path.exists(repo_dir):
@@ -394,7 +401,7 @@ def remove_repo(repo_name):
     save_repos(repos)
 
     # Remove the actual repo directory
-    repo_dir = os.path.join(repos_dir, repo_name)
+    repo_dir = os.path.join(REPO_DIR, repo_name)
     if os.path.exists(repo_dir):
         try:
             shutil.rmtree(repo_dir, onerror=remove_readonly)
@@ -425,7 +432,7 @@ def re_pull_repo(repo_name):
     run_once = repo_data.get("run_once", False)
 
     # Re-clone or pull the repository
-    repo_dir = os.path.join(repos_dir, repo_name)
+    repo_dir = os.path.join(REPO_DIR, repo_name)
     if os.path.exists(repo_dir):
         try:
             repo = git.Repo(repo_dir)
@@ -497,7 +504,7 @@ def startup_event():
             )
             # Run immediately if run_on_startup is True
             if run_on_startup:
-                main_py = os.path.join(repos_dir, repo_name, 'main.py')
+                main_py = os.path.join(REPO_DIR, repo_name, 'main.py')
                 if os.path.exists(main_py):
                     run_repo_task(main_py, repo_name)
         except Exception as e:
@@ -530,9 +537,6 @@ def startup_event():
 @app.before_first_request
 def before_first_request_func():
     startup_event()
-
-
-
 
 if __name__ == "__main__":
     # Get the machine's local IP address
