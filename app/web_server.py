@@ -4,12 +4,25 @@ import socket
 
 app = Flask(__name__)
 
+
 @app.route('/')
 def index():
     # Get the directory of the current script
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    # Serve index.html from the 'app' directory
+    print(f"Script working directory: {current_dir}")
+
+    # Construct the full path to index.html
+    index_file = os.path.join(current_dir, 'index.html')
+    print(f"Index.html path: {index_file}")
+
+    # Check if index.html exists
+    if not os.path.exists(index_file):
+        print("index.html not found")
+        return "index.html not found", 404
+
+    # Serve index.html from the current directory
     return send_from_directory(current_dir, 'index.html')
+
 
 if __name__ == "__main__":
     # Get the machine's local IP address
