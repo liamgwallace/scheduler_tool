@@ -15,5 +15,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Expose ports
 EXPOSE 8000 5000
 
-# Start the servers
-CMD ["sh", "-c", "python app/api_server.py & python app/web_server.py & wait"]
+# Start the servers and pull updates from the repo
+CMD ["sh", "-c", "while true; do git pull origin master; sleep 60; done & python app/api_server.py & python app/web_server.py & wait"]
