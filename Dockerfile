@@ -1,20 +1,29 @@
-#2
+# Use a slim version of Python 3.9 as the base image
 FROM python:3.9-slim
 
+# Set the working directory
 WORKDIR /app
 
-# Install git, curl, nano, and necessary packages
-RUN apt-get update && apt-get install -y git curl nano \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+# Install required packages (git, curl, nano)
+RUN apt-get update && \
+    apt-get install -y git curl nano && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-# Clone your repository
+# Clone the GitHub repository
 RUN git clone https://github.com/liamgwallace/scheduler_tool.git .
+
+# Copy requirements.txt to the working directory
+COPY requirements.txt .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Expose ports
+# Expose the necessary ports
 EXPOSE 8000 5000
 
-# Start the servers and pull updates from the repo
-CMD ["sh", "-c", "rm -rf /app/* && while true; do git -C /app pull origin master; sleep 60; done & python app/api_server.py & python app/web_server.py & wait"]
+# Copy the entire application code from the cloned repository
+COPY app/ ./app/
+
+# Start the application servers
+CMD ["sh", "-c", "python app/api_server.py & python app/web_server.py & wait"]

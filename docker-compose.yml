@@ -1,8 +1,10 @@
-#1
+version: '3.8'
+
 services:
   automation-api:
     build:
       context: .  # Build context is current directory
+      dockerfile: Dockerfile  # Specify the Dockerfile
     ports:
       - "8000:8000"
       - "5000:5000"
@@ -10,6 +12,7 @@ services:
       - ./data:/data
       - ./logs:/logs
       - ./repos:/repos
+      - .:/app  # Mount current directory to /app to reflect repo changes
     restart: always
     networks:
       - web
