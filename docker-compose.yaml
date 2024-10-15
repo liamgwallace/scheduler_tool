@@ -1,17 +1,33 @@
-version: '3.8'
-
 services:
   automation-api:
     build:
-      context: https://github.com/liamgwallace/scheduler_tool  # Use GitHub URL directly
-      dockerfile: Dockerfile  # Reference the Dockerfile in the repository
+      context: .  # Use current folder context
+      dockerfile_inline: |
+        FROM python:3.9-slim
+        WORKDIR /app
+
+        # Install git and necessary packages
+        RUN apt-get update && apt-get install -y git \
+            && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+        # Clone the repository initially
+        RUN git clone https://github.com/liamgwallace/scheduler_tool.git .
+
+        # Install Python dependencies
+        RUN pip install --no-cache-dir -r requirements.txt
+
+        # Expose ports for both API and Web servers
+        EXPOSE 8000 5000
+
+        # Ensure the latest updates are pulled when the container starts
+        CMD ["sh", "-c", "git -C /app pull && python app/api_server.py & python app/web_server.py"]
     ports:
       - "8000:8000"
-      - "5000:5000"
+      - "5000:5000"  # Added port mapping for web server
     volumes:
-      - ./app/automations.json:/app/app/automations.json
-      - ./app/automation.log:/app/app/automation.log
-      - ./app/error.log:/app/app/error.log
-      - ./app/repos.json:/app/app/repos.json
-      - ./app/repos:/app/app/repos
+      - ./app/automations.json:/app/app/automations.json  # Persist automation data
+      - ./app/automation.log:/app/app/automation.log      # Log automation runs
+      - ./app/error.log:/app/app/error.log                # Log errors
+      - ./app/repos.json:/app/app/repos.json              # Persist repo data
+      - ./app/repos:/app/app/repos                        # Persist cloned repositories
     restart: always
