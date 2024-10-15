@@ -26,4 +26,4 @@ EXPOSE 8000 5000
 COPY app/ ./app/
 
 # Start the application servers
-CMD ["sh", "-c", "python app/api_server.py & python app/web_server.py & wait"]
+CMD ["sh", "-c", "python app/web_api_server.py & wait"]
