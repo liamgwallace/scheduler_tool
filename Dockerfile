@@ -26,5 +26,6 @@ EXPOSE 8000 5000
 COPY app/ ./app/
 
 # Start the application servers
-CMD ["sh", "-c", "python -u app/web_api_server.py & wait"]
+CMD ["sh", "-c", "echo 'Running version 0.01' && python -u app/web_api_server.py & wait"]
+
 
