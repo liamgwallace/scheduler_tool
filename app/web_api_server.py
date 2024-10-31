@@ -15,6 +15,8 @@ import errno
 import stat
 from apscheduler.jobstores.base import JobLookupError
 from flask_cors import CORS
+import types
+import threading
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
@@ -147,24 +149,41 @@ def install_packages(packages):
 
 # Function to run the code (packages already installed)
 def run_task(code, task_id):
-    try:
-        exec(code, {})
-        log_print(f"Automation '{task_id}' successfully ran.", level='INFO')
-    except Exception as e:
-        log_print(f"Error running automation '{task_id}': {str(e)}", level='ERROR')
+    def task():
+        try:
+            # Create a new module to serve as the global namespace
+            module = types.ModuleType(f'automation_{task_id}')
+            module.__name__ = '__main__'  # Set __name__ to '__main__' for Flask
+            module.__file__ = f'automation_{task_id}.py'  # Optional: Set a dummy __file__
+
+            # Execute the automation code within the module's namespace
+            exec(code, module.__dict__)
+
+            log_print(f"Automation '{task_id}' successfully ran.", level='INFO')
+        except Exception as e:
+            log_print(f"Error running automation '{task_id}': {str(e)}", level='ERROR')
+
+    # Create and start a new daemon thread for the automation task
+    task_thread = threading.Thread(target=task, name=f'automation_thread_{task_id}', daemon=True)
+    task_thread.start()
 
 
 # Function to run repo task
 def run_repo_task(repo_script, repo_name):
-    try:
-        result = subprocess.run(
-            [sys.executable, repo_script],
-            check=True,
-            shell=False
-        )
-        log_print(f"Executed '{repo_script}' from repository '{repo_name}'", level='INFO')
-    except subprocess.CalledProcessError as e:
-        log_print(f"Failed to execute '{repo_script}' from repository '{repo_name}': {str(e)}", level='ERROR')
+    def task():
+        try:
+            result = subprocess.run(
+                [sys.executable, repo_script],
+                check=True,
+                shell=False
+            )
+            log_print(f"Executed '{repo_script}' from repository '{repo_name}'", level='INFO')
+        except subprocess.CalledProcessError as e:
+            log_print(f"Failed to execute '{repo_script}' from repository '{repo_name}': {str(e)}", level='ERROR')
+
+    # Create and start a new daemon thread for the task
+    task_thread = threading.Thread(target=task, name=f'repo_task_thread_{repo_name}', daemon=True)
+    task_thread.start()
 
 
 # Helper function to parse cron expressions
