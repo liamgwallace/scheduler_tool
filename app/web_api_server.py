@@ -36,12 +36,39 @@ os.makedirs(LOG_DIR, exist_ok=True)
 os.makedirs(REPO_DIR, exist_ok=True)
 
 # Set up logging
-logging.basicConfig(
-    filename=os.path.join(LOG_DIR, 'automation.log'),
-    level=logging.INFO,
-    format='%(asctime)s - %(message)s'
-)
-error_log = os.path.join(LOG_DIR, 'error.log')
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)  # Set the root logger level to DEBUG so all messages are processed
+
+# Create a single handler
+file_handler = logging.FileHandler(os.path.join(LOG_DIR, 'logs.log'))
+file_handler.setLevel(logging.DEBUG)  # Log all messages
+
+# Create formatter and add it to the handler
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+file_handler.setFormatter(formatter)
+
+# Add handler to the logger
+logger.addHandler(file_handler)
+
+
+# Define the log_print function
+def log_print(message, level='INFO'):
+    # Log levels: 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'
+    # Map the level to the logging module levels
+    level_dict = {
+        'DEBUG': logging.DEBUG,
+        'INFO': logging.INFO,
+        'WARNING': logging.WARNING,
+        'ERROR': logging.ERROR,
+        'CRITICAL': logging.CRITICAL
+    }
+    # Get the numeric level
+    numeric_level = level_dict.get(level.upper(), logging.INFO)
+    # Log the message
+    logger.log(numeric_level, message)
+    # Print the message with the level
+    print(f"{level}: {message}")
+
 
 # Files to store automations and repositories
 AUTOMATIONS_FILE = os.path.join(DATA_DIR, "automations.json")
@@ -53,25 +80,30 @@ for file in [AUTOMATIONS_FILE, REPOS_FILE]:
         with open(file, 'w') as f:
             json.dump({}, f, indent=4)
 
+
 # Load automations from file
 def load_automations():
     with open(AUTOMATIONS_FILE, 'r') as f:
         return json.load(f)
+
 
 # Save automations to file
 def save_automations(automations):
     with open(AUTOMATIONS_FILE, 'w') as f:
         json.dump(automations, f, indent=4)
 
+
 # Load repositories from file
 def load_repos():
     with open(REPOS_FILE, 'r') as f:
         return json.load(f)
 
+
 # Save repositories to file
 def save_repos(repos):
     with open(REPOS_FILE, 'w') as f:
         json.dump(repos, f, indent=4)
+
 
 # Helper decorator for error handling
 def handle_exceptions(f):
@@ -84,17 +116,18 @@ def handle_exceptions(f):
             response.status_code = e.status_code
             return response
         except Exception as e:
-            logging.error(f"Unhandled exception: {str(e)}")
-            with open(error_log, 'a') as err_file:
-                err_file.write(f"Unhandled exception: {str(e)}\n")
+            log_print(f"Unhandled exception: {str(e)}", level='ERROR')
             return jsonify({"detail": "Internal Server Error"}), 500
+
     return decorated_function
+
 
 # Custom HTTPException for error handling
 class HTTPException(Exception):
     def __init__(self, status_code, detail):
         self.status_code = status_code
         self.detail = detail
+
 
 # Function to install packages immediately
 def install_packages(packages):
@@ -108,20 +141,18 @@ def install_packages(packages):
                 )
     except subprocess.CalledProcessError as e:
         package = package if 'package' in locals() else 'unknown'
-        logging.error(f"Failed to install package: {package}. Error: {str(e)}")
-        with open(error_log, 'a') as err_file:
-            err_file.write(f"Failed to install package: {package}. Error: {str(e)}\n")
-        raise HTTPException(400, f"Failed to install package: {package}. Error: {str(e)}")
+        log_print(f"Failed to install package: '{package}'. Error: {str(e)}", level='ERROR')
+        raise HTTPException(400, f"Failed to install package: '{package}'. Error: {str(e)}")
+
 
 # Function to run the code (packages already installed)
 def run_task(code, task_id):
     try:
         exec(code, {})
-        logging.info(f"Automation {task_id} successfully ran.")
+        log_print(f"Automation '{task_id}' successfully ran.", level='INFO')
     except Exception as e:
-        logging.error(f"Error running automation {task_id}: {str(e)}")
-        with open(error_log, 'a') as err_file:
-            err_file.write(f"Error running automation {task_id}: {str(e)}\n")
+        log_print(f"Error running automation '{task_id}': {str(e)}", level='ERROR')
+
 
 # Function to run repo task
 def run_repo_task(repo_script, repo_name):
@@ -131,11 +162,10 @@ def run_repo_task(repo_script, repo_name):
             check=True,
             shell=False
         )
-        logging.info(f"Executed {repo_script} from repository {repo_name}")
+        log_print(f"Executed '{repo_script}' from repository '{repo_name}'", level='INFO')
     except subprocess.CalledProcessError as e:
-        logging.error(f"Failed to execute {repo_script} from repository {repo_name}: {str(e)}")
-        with open(error_log, 'a') as err_file:
-            err_file.write(f"Failed to execute {repo_script} from repository {repo_name}: {str(e)}\n")
+        log_print(f"Failed to execute '{repo_script}' from repository '{repo_name}': {str(e)}", level='ERROR')
+
 
 # Helper function to parse cron expressions
 def parse_cron(cron_expr):
@@ -153,10 +183,12 @@ def parse_cron(cron_expr):
     except Exception as e:
         raise HTTPException(400, f"Invalid cron expression: {str(e)}")
 
+
 # Function to remove read-only files
 def remove_readonly(func, path, excinfo):
     os.chmod(path, stat.S_IWRITE)
     func(path)
+
 
 # Clone a GitHub repository and run main.py if it exists
 def clone_and_run(repo_url, schedule=None, run_on_startup=False, run_once=False):
@@ -167,12 +199,10 @@ def clone_and_run(repo_url, schedule=None, run_on_startup=False, run_once=False)
     if not os.path.exists(repo_dir):
         try:
             repo = git.Repo.clone_from(repo_url, repo_dir)
-            logging.info(f"Cloned repository {repo_url}")
+            log_print(f"Cloned repository '{repo_url}'", level='INFO')
             del repo  # Ensure the Repo object is deleted
         except Exception as e:
-            logging.error(f"Failed to clone repository {repo_url}: {str(e)}")
-            with open(error_log, 'a') as err_file:
-                err_file.write(f"Failed to clone repository {repo_url}: {str(e)}\n")
+            log_print(f"Failed to clone repository '{repo_url}': {str(e)}", level='ERROR')
             raise HTTPException(500, f"Failed to clone repository: {str(e)}")
     else:
         # Pull the latest changes
@@ -180,12 +210,10 @@ def clone_and_run(repo_url, schedule=None, run_on_startup=False, run_once=False)
             repo = git.Repo(repo_dir)
             origin = repo.remotes.origin
             origin.pull()
-            logging.info(f"Pulled latest changes for repository {repo_url}")
+            log_print(f"Pulled latest changes for repository '{repo_url}'", level='INFO')
             del repo  # Ensure the Repo object is deleted
         except Exception as e:
-            logging.error(f"Failed to pull repository {repo_url}: {str(e)}")
-            with open(error_log, 'a') as err_file:
-                err_file.write(f"Failed to pull repository {repo_url}: {str(e)}\n")
+            log_print(f"Failed to pull repository {repo_url}: {str(e)}", level='ERROR')
             raise HTTPException(500, f"Failed to pull repository: {str(e)}")
 
     # Install requirements.txt if it exists
@@ -197,18 +225,16 @@ def clone_and_run(repo_url, schedule=None, run_on_startup=False, run_once=False)
                 check=True,
                 shell=False
             )
-            logging.info(f"Installed requirements for {repo_name}")
+            log_print(f"Installed requirements for '{repo_name}'", level='INFO')
         except subprocess.CalledProcessError as e:
-            logging.error(f"Failed to install requirements for {repo_name}: {str(e)}")
-            with open(error_log, 'a') as err_file:
-                err_file.write(f"Failed to install requirements for {repo_name}: {str(e)}\n")
+            log_print(f"Failed to install requirements for '{repo_name}': {str(e)}", level='ERROR')
             raise HTTPException(500, f"Failed to install requirements: {str(e)}")
 
     # Run main.py if it exists
     main_py = os.path.join(repo_dir, 'main.py')
     if not os.path.exists(main_py):
-        logging.error(f"No main.py found in {repo_name}")
-        raise HTTPException(404, f"No main.py found in {repo_name}")
+        log_print(f"No main.py found in {repo_name}", level='ERROR')
+        raise HTTPException(404, f"No main.py found in '{repo_name}'")
 
     # Schedule with cron if schedule is provided
     if schedule:
@@ -221,7 +247,7 @@ def clone_and_run(repo_url, schedule=None, run_on_startup=False, run_once=False)
             args=[main_py, repo_name],
             replace_existing=True
         )
-        logging.info(f"Scheduled repository {repo_name} with cron schedule: {schedule}")
+        log_print(f"Scheduled repository '{repo_name}' with cron schedule: '{schedule}'", level='INFO')
 
     # Run immediately if run_once is True
     if run_once:
@@ -239,18 +265,20 @@ def clone_and_run(repo_url, schedule=None, run_on_startup=False, run_once=False)
 
     return repo_name  # Return the repository name as the ID
 
+
 # Routes for Automations
 @app.route('/')
 def index():
     # Serve index.html from the current directory
     return send_from_directory(APP_DIR, 'index.html')
 
+
 @app.route("/automation/create_or_update/", methods=["POST"])
 @handle_exceptions
 def create_or_update_automation():
-    print(f"Endpoint '/automation/create_or_update/' triggered.")
+    log_print(f"Endpoint '/automation/create_or_update/' triggered.", level='INFO')
     data = request.get_json()
-    print(f"Payload: {data}")
+    log_print(f"Payload: {data}", level='DEBUG')
     if not data:
         raise HTTPException(400, "Invalid JSON data")
 
@@ -275,7 +303,7 @@ def create_or_update_automation():
     if task_id in automations:
         try:
             scheduler.remove_job(task_id)
-            logging.info(f"Removed existing automation job {task_id}")
+            log_print(f"Removed existing automation job {task_id}", level='INFO')
         except JobLookupError:
             pass  # Job might not exist
 
@@ -284,7 +312,7 @@ def create_or_update_automation():
         cron_params = parse_cron(schedule)
         trigger = CronTrigger(**cron_params)
         scheduler.add_job(run_task, trigger, id=task_id, args=[code, task_id])
-        logging.info(f"Scheduled automation {task_id} with cron schedule: {schedule}")
+        log_print(f"Scheduled automation '{task_id}' with cron schedule: '{schedule}'", level='INFO')
 
     # Run immediately if run_once is True
     if run_once:
@@ -303,21 +331,23 @@ def create_or_update_automation():
 
     return jsonify({
         "status": "success",
-        "message": f"Automation {task_id} added or updated",
+        "message": f"Automation '{task_id}' added or updated",
         "id": task_id
     }), 200
+
 
 @app.route("/automation/list_all/", methods=["GET"])
 @handle_exceptions
 def list_automations():
-    print(f"Endpoint '/automation/list_all/' triggered.")
+    log_print(f"Endpoint '/automation/list_all/' triggered.", level='INFO')
     automations = load_automations()
     return jsonify(automations), 200
+
 
 @app.route("/automation/<task_id>/get_code/", methods=["GET"])
 @handle_exceptions
 def get_automation_code(task_id):
-    print(f"Endpoint '/automation/{task_id}/get_code/' triggered.")
+    log_print(f"Endpoint '/automation/{task_id}/get_code/' triggered.", level='INFO')
     automations = load_automations()
     if task_id not in automations:
         raise HTTPException(404, "Automation not found")
@@ -330,36 +360,38 @@ def get_automation_code(task_id):
         "run_once": automations[task_id].get("run_once")
     }), 200
 
+
 @app.route("/automation/<task_id>/delete/", methods=["DELETE"])
 @handle_exceptions
 def remove_automation(task_id):
-    print(f"Endpoint '/automation/{task_id}/delete/' triggered.")
+    log_print(f"Endpoint '/automation/{task_id}/delete/' triggered.", level='INFO')
     automations = load_automations()
     if task_id not in automations:
         raise HTTPException(404, "Automation not found")
 
     try:
         scheduler.remove_job(task_id)
-        logging.info(f"Removed automation job {task_id}")
+        log_print(f"Removed automation job '{task_id}'", level='INFO')
     except JobLookupError as e:
-        logging.warning(f"Could not remove job {task_id}: {str(e)}")
+        log_print(f"Could not remove job '{task_id}': {str(e)}", level='WARNING')
 
     del automations[task_id]
     save_automations(automations)
 
     return jsonify({
         "status": "success",
-        "message": f"Automation {task_id} removed"
+        "message": f"Automation '{task_id}' removed"
     }), 200
+
 
 # Routes for Repositories
 
 @app.route("/repo/clone_and_run/", methods=["POST"])
 @handle_exceptions
 def clone_and_run_repo():
-    print(f"Endpoint '/repo/clone_and_run/' triggered.")
+    log_print(f"Endpoint '/repo/clone_and_run/' triggered.", level='INFO')
     data = request.get_json()
-    print(f"Payload: {data}")
+    log_print(f"Payload: {data}", level='DEBUG')
     if not data:
         raise HTTPException(400, "Invalid JSON data")
 
@@ -376,21 +408,23 @@ def clone_and_run_repo():
     repo_name = clone_and_run(repo_url, schedule, run_on_startup, run_once)
     return jsonify({
         "status": "success",
-        "message": f"Cloned and ran repo {repo_url}",
+        "message": f"Cloned and ran repo '{repo_url}'",
         "id": repo_name
     }), 200
+
 
 @app.route("/repo/list_all/", methods=["GET"])
 @handle_exceptions
 def list_repos_route():
-    print(f"Endpoint '/repo/list_all/' triggered.")
+    log_print(f"Endpoint '/repo/list_all/' triggered.", level='INFO')
     repos = load_repos()
     return jsonify(repos), 200
+
 
 @app.route("/repo/<repo_name>/delete/", methods=["DELETE"])
 @handle_exceptions
 def remove_repo(repo_name):
-    print(f"Endpoint '/repo/{repo_name}/delete/' triggered.")
+    log_print(f"Endpoint '/repo/{repo_name}/delete/' triggered.", level='INFO')
     repos = load_repos()
     if repo_name not in repos:
         raise HTTPException(404, "Repository not found")
@@ -398,7 +432,7 @@ def remove_repo(repo_name):
     # Remove scheduled job
     try:
         scheduler.remove_job(repo_name)
-        logging.info(f"Removed scheduled job for repository {repo_name}")
+        log_print(f"Removed scheduled job for repository '{repo_name}'", level='INFO')
     except JobLookupError:
         pass  # Job might not exist
 
@@ -410,22 +444,21 @@ def remove_repo(repo_name):
     if os.path.exists(repo_dir):
         try:
             shutil.rmtree(repo_dir, onerror=remove_readonly)
-            logging.info(f"Removed repository directory {repo_dir}")
+            log_print(f"Removed repository directory '{repo_dir}'", level='INFO')
         except Exception as e:
-            logging.error(f"Failed to remove repository directory {repo_dir}: {str(e)}")
-            with open(error_log, 'a') as err_file:
-                err_file.write(f"Failed to remove repository directory {repo_dir}: {str(e)}\n")
+            log_print(f"Failed to remove repository directory '{repo_dir}': {str(e)}", level='ERROR')
             raise HTTPException(500, f"Failed to remove repository directory: {str(e)}")
 
     return jsonify({
         "status": "success",
-        "message": f"Repository {repo_name} removed"
+        "message": f"Repository '{repo_name}' removed"
     }), 200
+
 
 @app.route("/repo/<repo_name>/re-pull/", methods=["POST"])
 @handle_exceptions
 def re_pull_repo(repo_name):
-    print(f"Endpoint '/repo/{repo_name}/re-pull/' triggered.")
+    log_print(f"Endpoint '/repo/{repo_name}/re-pull/' triggered.", level='INFO')
     repos = load_repos()
     if repo_name not in repos:
         raise HTTPException(404, "Repository not found")
@@ -443,27 +476,25 @@ def re_pull_repo(repo_name):
             repo = git.Repo(repo_dir)
             origin = repo.remotes.origin
             origin.pull()
-            logging.info(f"Re-pulled repository {repo_url}")
+            log_print(f"Re-pulled repository '{repo_url}'", level='INFO')
             del repo  # Ensure the Repo object is deleted
         except Exception as e:
-            logging.error(f"Failed to re-pull repository {repo_url}: {str(e)}")
-            with open(error_log, 'a') as err_file:
-                err_file.write(f"Failed to re-pull repository {repo_url}: {str(e)}\n")
+            log_print(f"Failed to re-pull repository '{repo_url}': {str(e)}", level='ERROR')
             raise HTTPException(500, f"Failed to re-pull repository: {str(e)}")
     else:
         # If repo directory doesn't exist, clone it
         clone_and_run(repo_url, schedule, run_on_startup, run_once)
         return jsonify({
             "status": "success",
-            "message": f"Cloned and ran repo {repo_url}",
+            "message": f"Cloned and ran repo '{repo_url}'",
             "id": repo_name
         }), 200
 
     # Schedule with cron if schedule is provided
     main_py = os.path.join(repo_dir, 'main.py')
     if not os.path.exists(main_py):
-        logging.error(f"No main.py found in {repo_name} after re-pull")
-        raise HTTPException(404, f"No main.py found in {repo_name} after re-pull")
+        log_print(f"No main.py found in '{repo_name}' after re-pull", level='ERROR')
+        raise HTTPException(404, f"No main.py found in '{repo_name}' after re-pull")
 
     if schedule:
         # Reschedule the job
@@ -480,7 +511,7 @@ def re_pull_repo(repo_name):
             args=[main_py, repo_name],
             replace_existing=True
         )
-        logging.info(f"Rescheduled repository {repo_name} with cron schedule: {schedule}")
+        log_print(f"Rescheduled repository '{repo_name}' with cron schedule: '{schedule}'", level='INFO')
 
     # Run immediately if run_once is True
     if run_once:
@@ -488,8 +519,9 @@ def re_pull_repo(repo_name):
 
     return jsonify({
         "status": "success",
-        "message": f"Re-pulled and executed repo {repo_name}"
+        "message": f"Re-pulled and executed repo '{repo_name}'"
     }), 200
+
 
 # Load and run repositories and automations on startup
 def startup_event():
@@ -500,6 +532,9 @@ def startup_event():
         schedule = repo_data.get("schedule")
         run_on_startup = repo_data.get("run_on_startup", False)
         run_once = False  # Avoid running twice on startup
+        log_print(
+            f"Cloning and loading repo '{repo_name}' - '{repo_url}', schedule: '{schedule}', run_on_startup: '{run_on_startup}'",
+            level='INFO')
         try:
             clone_and_run(
                 repo_url,
@@ -513,8 +548,7 @@ def startup_event():
                 if os.path.exists(main_py):
                     run_repo_task(main_py, repo_name)
         except Exception as e:
-            logging.error(f"Failed to run repository {repo_name} on startup: {str(e)}")
-
+            log_print(f"Failed to run repository '{repo_name}' on startup: {str(e)}", level='ERROR')
     # Load and run automations
     automations = load_automations()
     for task_id, automation_data in automations.items():
@@ -523,6 +557,7 @@ def startup_event():
         schedule = automation_data.get("schedule")
         run_on_startup = automation_data.get("run_on_startup", False)
         run_once = False  # Avoid running twice on startup
+        log_print(f"Loading code '{task_id}', schedule: '{schedule}', run_on_startup: '{run_on_startup}'", level='INFO')
 
         # Install packages
         install_packages(packages)
@@ -532,16 +567,11 @@ def startup_event():
             cron_params = parse_cron(schedule)
             trigger = CronTrigger(**cron_params)
             scheduler.add_job(run_task, trigger, id=task_id, args=[code, task_id])
-            logging.info(f"Scheduled automation {task_id} with cron schedule: {schedule}")
 
         # Run immediately if run_on_startup is True
         if run_on_startup:
             run_task(code, task_id)
 
-# Register the startup event
-@app.before_first_request
-def before_first_request_func():
-    startup_event()
 
 if __name__ == "__main__":
     # Get the machine's local IP address
@@ -550,9 +580,11 @@ if __name__ == "__main__":
     port = "8000"
 
     # Print informative message
-    print(f"##############################")
-    print(f"Local address: http://{local_ip}:{port}")
-    print(f"Machine hostname: {hostname}")
+    log_print(f"##############################", level='INFO')
+    log_print(f"Local address: http://{local_ip}:{port}", level='INFO')
+    log_print(f"Machine hostname: '{hostname}'", level='INFO')
+
+    startup_event()
 
     # Run the Flask server
     app.run(host="0.0.0.0", port=port, debug=False)
