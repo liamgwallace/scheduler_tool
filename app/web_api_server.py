@@ -541,6 +541,14 @@ def re_pull_repo(repo_name):
         "message": f"Re-pulled and executed repo '{repo_name}'"
     }), 200
 
+@app.route("/logs", methods=["GET"])
+def get_logs():
+    log_file_path = os.path.join(LOG_DIR, 'logs.log')
+    if os.path.exists(log_file_path):
+        with open(log_file_path, 'r') as f:
+            logs_content = f.read()
+        return jsonify({"logs": logs_content}), 200
+    return jsonify({"logs": "Log file not found"}), 404
 
 # Load and run repositories and automations on startup
 def startup_event():

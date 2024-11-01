@@ -36,6 +36,38 @@
         .close:hover, .close:focus {
             color: black; text-decoration: none; cursor: pointer;
         }
+        /* Resizable textarea */
+        #automation-code {
+            resize: both;
+            width: 100%; /* Make it full width */
+            box-sizing: border-box; /* Ensure padding is included in the width */
+        }
+        /* Log section styling */
+        #logs-container {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        /* Make input, textarea, and checkbox elements full width in modals */
+        .modal-content input[type="text"],
+        .modal-content textarea,
+        .modal-content select {
+            width: 100%;
+            box-sizing: border-box; /* Ensures padding and border are included in width */
+            padding: 8px;
+            margin-bottom: 10px;
+        }
+        .modal-content input[type="checkbox"] {
+            margin-right: 10px;
+        }
+        /* Adjust button in the modal to fit width */
+        .modal-content button {
+            width: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+        }
     </style>
 </head>
 <body>
@@ -83,15 +115,15 @@
             <label for="automation-task-id-input">Task ID:</label><br>
             <input type="text" id="automation-task-id-input" name="task_id"><br>
             <label for="automation-code">Code:</label><br>
-            <textarea id="automation-code" name="code" rows="10" cols="50"></textarea><br>
+            <textarea id="automation-code" name="code" rows="10"></textarea><br>
             <label for="automation-packages">Packages (comma-separated):</label><br>
             <input type="text" id="automation-packages" name="packages"><br>
             <label for="automation-schedule">Schedule (cron expression):</label><br>
             <input type="text" id="automation-schedule" name="schedule"><br>
             <label for="automation-run-on-startup">Run on Startup:</label>
             <input type="checkbox" id="automation-run-on-startup" name="run_on_startup"><br>
-            <label for="automation-run-once">Run Once:</label>
-            <input type="checkbox" id="automation-run-once" name="run_once"><br><br>
+            <label for="automation-run-on-one">Run Once:</label>
+            <input type="checkbox" id="automation-run-on-one" name="run_once"><br><br>
             <button type="button" onclick="submitAutomationForm()">Submit</button>
         </form>
     </div>
@@ -109,12 +141,16 @@
             <input type="text" id="repo-schedule" name="schedule"><br>
             <label for="repo-run-on-startup">Run on Startup:</label>
             <input type="checkbox" id="repo-run-on-startup" name="run_on_startup"><br>
-            <label for="repo-run-once">Run Once:</label>
-            <input type="checkbox" id="repo-run-once" name="run_once"><br><br>
+            <label for="repo-run-on-one">Run Once:</label>
+            <input type="checkbox" id="repo-run-on-one" name="run_once"><br><br>
             <button type="button" onclick="submitRepoForm()">Submit</button>
         </form>
     </div>
 </div>
+
+<h2>Logs</h2>
+<label><input type="checkbox" id="auto-refresh" checked> Auto-refresh every 5 seconds</label>
+<div id="logs-container"></div>
 
 <script>
     const apiBaseUrl = '';
@@ -123,7 +159,6 @@
         fetch(`${apiBaseUrl}/automation/list_all/`)
             .then(response => response.json())
             .then(data => {
-                console.log('Automations data:', data); // Debug statement
                 const tbody = document.getElementById('automations-table').getElementsByTagName('tbody')[0];
                 tbody.innerHTML = '';
                 for (const [task_id, automation] of Object.entries(data)) {
@@ -140,14 +175,13 @@
                     tbody.appendChild(tr);
                 }
             })
-            .catch(error => console.error('Error fetching automations:', error)); // Error handling
+            .catch(error => console.error('Error fetching automations:', error));
     }
 
     function fetchRepos() {
         fetch(`${apiBaseUrl}/repo/list_all/`)
             .then(response => response.json())
             .then(data => {
-                console.log('Repositories data:', data); // Debug statement
                 const tbody = document.getElementById('repos-table').getElementsByTagName('tbody')[0];
                 tbody.innerHTML = '';
                 for (const [repo_name, repo] of Object.entries(data)) {
@@ -165,7 +199,7 @@
                     tbody.appendChild(tr);
                 }
             })
-            .catch(error => console.error('Error fetching repositories:', error)); // Error handling
+            .catch(error => console.error('Error fetching repositories:', error));
     }
 
     function editAutomation(task_id) {
@@ -180,10 +214,10 @@
                 document.getElementById('automation-packages').value = (data.packages || []).join(', ');
                 document.getElementById('automation-schedule').value = data.schedule || '';
                 document.getElementById('automation-run-on-startup').checked = data.run_on_startup || false;
-                document.getElementById('automation-run-once').checked = data.run_once || false;
+                document.getElementById('automation-run-on-one').checked = data.run_once || false;
                 showAutomationModal();
             })
-            .catch(error => console.error('Error fetching automation details:', error)); // Error handling
+            .catch(error => console.error('Error fetching automation details:', error));
     }
 
     function editRepo(repo_name) {
@@ -196,10 +230,10 @@
                 document.getElementById('repo-url').value = repo.repo_url || '';
                 document.getElementById('repo-schedule').value = repo.schedule || '';
                 document.getElementById('repo-run-on-startup').checked = repo.run_on_startup || false;
-                document.getElementById('repo-run-once').checked = repo.run_once || false;
+                document.getElementById('repo-run-on-one').checked = repo.run_once || false;
                 showRepoModal();
             })
-            .catch(error => console.error('Error fetching repository details:', error)); // Error handling
+            .catch(error => console.error('Error fetching repository details:', error));
     }
 
     function showCreateAutomationModal() {
@@ -211,7 +245,7 @@
         document.getElementById('automation-packages').value = '';
         document.getElementById('automation-schedule').value = '';
         document.getElementById('automation-run-on-startup').checked = false;
-        document.getElementById('automation-run-once').checked = false;
+        document.getElementById('automation-run-on-one').checked = false;
         showAutomationModal();
     }
 
@@ -221,7 +255,7 @@
         document.getElementById('repo-url').value = '';
         document.getElementById('repo-schedule').value = '';
         document.getElementById('repo-run-on-startup').checked = false;
-        document.getElementById('repo-run-once').checked = false;
+        document.getElementById('repo-run-on-one').checked = false;
         showRepoModal();
     }
 
@@ -247,7 +281,7 @@
         const packages = document.getElementById('automation-packages').value.split(',').map(s => s.trim()).filter(s => s);
         const schedule = document.getElementById('automation-schedule').value || null;
         const run_on_startup = document.getElementById('automation-run-on-startup').checked;
-        const run_once = document.getElementById('automation-run-once').checked;
+        const run_once = document.getElementById('automation-run-on-one').checked;
 
         fetch(`${apiBaseUrl}/automation/create_or_update/`, {
             method: 'POST',
@@ -259,14 +293,14 @@
             closeAutomationModal();
             fetchAutomations();
         })
-        .catch(error => console.error('Error submitting automation form:', error)); // Error handling
+        .catch(error => console.error('Error submitting automation form:', error));
     }
 
     function submitRepoForm() {
         const repo_url = document.getElementById('repo-url').value;
         const schedule = document.getElementById('repo-schedule').value || null;
         const run_on_startup = document.getElementById('repo-run-on-startup').checked;
-        const run_once = document.getElementById('repo-run-once').checked;
+        const run_once = document.getElementById('repo-run-on-one').checked;
 
         fetch(`${apiBaseUrl}/repo/clone_and_run/`, {
             method: 'POST',
@@ -278,7 +312,7 @@
             closeRepoModal();
             fetchRepos();
         })
-        .catch(error => console.error('Error submitting repository form:', error)); // Error handling
+        .catch(error => console.error('Error submitting repository form:', error));
     }
 
     function runAutomationOnce(task_id) {
@@ -296,7 +330,7 @@
                     alert(`Automation ${task_id} run once.`);
                 });
             })
-            .catch(error => console.error('Error running automation once:', error)); // Error handling
+            .catch(error => console.error('Error running automation once:', error));
     }
 
     function deleteAutomation(task_id) {
@@ -308,7 +342,7 @@
                 alert(data.message);
                 fetchAutomations();
             })
-            .catch(error => console.error('Error deleting automation:', error)); // Error handling
+            .catch(error => console.error('Error deleting automation:', error));
         }
     }
 
@@ -319,7 +353,7 @@
         .then(data => {
             alert(`Repository ${repo_name} run once.`);
         })
-        .catch(error => console.error('Error running repository once:', error)); // Error handling
+        .catch(error => console.error('Error running repository once:', error));
     }
 
     function deleteRepo(repo_name) {
@@ -331,9 +365,29 @@
                 alert(data.message);
                 fetchRepos();
             })
-            .catch(error => console.error('Error deleting repository:', error)); // Error handling
+            .catch(error => console.error('Error deleting repository:', error));
         }
     }
+
+    // Fetch logs every 5 seconds if auto-refresh is enabled
+    function fetchLogs() {
+        fetch(`${apiBaseUrl}/logs`)
+            .then(response => response.json())
+            .then(data => {
+                const logsContainer = document.getElementById("logs-container");
+                logsContainer.innerText = data.logs || "No logs available.";
+
+                // Auto-scroll to the bottom
+                logsContainer.scrollTop = logsContainer.scrollHeight;
+            })
+            .catch(error => console.error("Error fetching logs:", error));
+    }
+
+    setInterval(() => {
+        if (document.getElementById("auto-refresh").checked) {
+            fetchLogs();
+        }
+    }, 5000);
 
     window.onclick = function(event) {
         const automationModal = document.getElementById('automation-modal');
@@ -349,6 +403,7 @@
     // Initial fetch
     fetchAutomations();
     fetchRepos();
+    fetchLogs();
 </script>
 
 </body>
