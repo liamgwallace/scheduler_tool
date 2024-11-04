@@ -541,13 +541,35 @@ def re_pull_repo(repo_name):
         "message": f"Re-pulled and executed repo '{repo_name}'"
     }), 200
 
+
 @app.route("/logs", methods=["GET"])
 def get_logs():
+    # Get the number of lines from the query parameter, default to 50 if not specified
+    line_count = request.args.get("lines", default="50")
+
+    # Handle 'all' option or convert line count to an integer
+    if line_count == "all":
+        line_count = None  # Signal to read the entire file
+    else:
+        try:
+            line_count = int(line_count)  # Convert to integer
+        except ValueError:
+            line_count = 50  # Fallback to 50 if conversion fails
+
     log_file_path = os.path.join(LOG_DIR, 'logs.log')
     if os.path.exists(log_file_path):
         with open(log_file_path, 'r') as f:
-            logs_content = f.read()
+            if line_count is None:
+                # Read all lines if 'all' is specified
+                logs_content = f.readlines()
+            else:
+                # Read only the last `line_count` lines
+                logs_content = f.readlines()[-line_count:]
+
+        # Join the lines into a single string or format as a list
+        logs_content = ''.join(logs_content)
         return jsonify({"logs": logs_content}), 200
+
     return jsonify({"logs": "Log file not found"}), 404
 
 # Load and run repositories and automations on startup

@@ -47,10 +47,17 @@
         /* Log section styling */
         #logs-container {
             margin-top: 20px;
+            font-size: 12px; /* Default for desktop */
             padding: 10px;
             border: 1px solid #ccc;
             max-height: 600px;
             overflow-y: auto;
+        }
+
+        @media (max-width: 1100px) {
+            #logs-container {
+                font-size: 7px; /* Smaller font for mobile */
+            }
         }
         /* Make input, textarea, and checkbox elements full width in modals */
         .modal-content input[type="text"],
@@ -152,6 +159,13 @@
 
 <h2>Logs</h2>
 <label><input type="checkbox" id="auto-refresh" checked> Auto-refresh every 5 seconds</label>
+<label>Show:
+    <select id="log-line-count" onchange="fetchLogs()">
+        <option value="50" selected>50 lines</option>
+        <option value="200">200 lines</option>
+        <option value="all">All lines</option>
+    </select>
+</label>
 <div id="logs-container"></div>
 
 <script>
@@ -373,11 +387,26 @@
 
     // Fetch logs every 5 seconds if auto-refresh is enabled
     function fetchLogs() {
-        fetch(`${apiBaseUrl}/logs`)
+        // Get the selected number of lines to show
+        const lineCount = document.getElementById("log-line-count").value;
+
+        // Log the constructed URL for debugging
+        const url = `${apiBaseUrl}/logs?lines=${lineCount}`;
+        console.log(`Fetching logs from: ${url}`);
+
+        fetch(url)
             .then(response => response.json())
             .then(data => {
                 const logsContainer = document.getElementById("logs-container");
-                logsContainer.innerText = data.logs || "No logs available.";
+
+                // Check if `data.logs` exists and is an array or string
+                if (data.logs) {
+                    logsContainer.innerText = Array.isArray(data.logs)
+                        ? data.logs.join('\n')  // Join array of log lines with newline
+                        : data.logs;            // Otherwise, use it as-is
+                } else {
+                    logsContainer.innerText = "No logs available.";
+                }
 
                 // Auto-scroll to the bottom
                 logsContainer.scrollTop = logsContainer.scrollHeight;
